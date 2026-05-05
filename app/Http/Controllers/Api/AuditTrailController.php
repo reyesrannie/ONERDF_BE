@@ -31,4 +31,30 @@ class AuditTrailController extends Controller
 
         return $this->responseSuccess(ResponseMessage::DISPLAY, $audit);
     }
+    public function destroy($id)
+    {
+        $audit = AuditTrail::where("id", $id)
+            ->withTrashed()
+            ->get();
+
+        if ($audit->isEmpty()) {
+            return $this->responseNotFound("Nothing to display.");
+        }
+
+        $audit = AuditTrail::withTrashed()->find($id);
+        $is_active = AuditTrail::withTrashed()
+            ->where("id", $id)
+            ->first();
+        if (!$is_active) {
+            return $is_active;
+        } elseif (!$is_active->deleted_at) {
+            $audit->delete();
+            $message = ResponseMessage::DELETE;
+        } else {
+            $audit->restore();
+            $message = ResponseMessage::RESTORE;
+        }
+        $audit_collect = new AuditTrailResource($audit);
+        return $this->responseSuccess($message, $audit_collect);
+    }
 }
