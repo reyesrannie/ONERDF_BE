@@ -229,6 +229,20 @@ Route::group(["middleware" => ["auth:sanctum"]], function () {
     Route::post("import/credit", [CreditController::class, "import"]);
     Route::post("import/allocation", [AllocationController::class, "import"]);
     Route::post("import/charge", [ChargeController::class, "import"]);
+
+    Route::post("import/supplier_type", [
+        SupplierTypeController::class,
+        "import",
+    ]);
+    Route::post("import/supplier_reference", [
+        SupplierReferenceController::class,
+        "import",
+    ]);
+    Route::post("import/supplier_buffer", [
+        SupplierBufferSeverityController::class,
+        "import",
+    ]);
+    Route::post("import/supplier", [SupplierController::class, "import"]);
 });
 Route::post("login", [AccountController::class, "login"]);
 

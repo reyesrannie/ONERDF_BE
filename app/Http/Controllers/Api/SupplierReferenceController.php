@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\SupplierReference;
-use Illuminate\Http\Request;
 use App\function\ResponseMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StatusRequest;
-use Essa\APIToolKit\Api\ApiResponse;
+use App\Http\Requests\SupplierReference\ImportRequest;
 use App\Http\Requests\SupplierReference\StoreRequest;
+use App\Models\SupplierReference;
+use Essa\APIToolKit\Api\ApiResponse;
+use Illuminate\Http\Request;
 
 class SupplierReferenceController extends Controller
 {
@@ -95,5 +96,12 @@ class SupplierReferenceController extends Controller
         }
 
         return $this->responseSuccess($message, $supplier_type);
+    }
+    public function import(ImportRequest $request)
+    {
+        $import = $request->all();
+        $business_unit = SupplierReference::upsert($import, ["name"]);
+
+        return $this->responseSuccess("Imported Sucessfully.", $import);
     }
 }

@@ -120,7 +120,7 @@ class ChargingController extends Controller
             return $is_active;
         } elseif (!$is_active->deleted_at) {
             $charging->delete();
-            return $this->responseDeleted();
+            $message = ResponseMessage::DELETE;
         } else {
             $charging->restore();
             $message = ResponseMessage::RESTORE;

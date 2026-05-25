@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\SupplierType;
-use Illuminate\Http\Request;
 use App\function\ResponseMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StatusRequest;
-use Essa\APIToolKit\Api\ApiResponse;
+use App\Http\Requests\SupplierType\ImportRequest;
 use App\Http\Requests\SupplierType\StoreRequest;
+use App\Imports\SupplierTypeImport;
+use App\Models\SupplierType;
+use App\Services\ExcelImportService;
+use Essa\APIToolKit\Api\ApiResponse;
+use Illuminate\Http\Request;
 
 class SupplierTypeController extends Controller
 {
@@ -46,13 +49,6 @@ class SupplierTypeController extends Controller
             "name" => $request->name,
         ]);
 
-        // $user_login = Auth()->user()->id;
-        // $audit_trail = AuditTrail::create([
-        //     "user_id" => $user_login,
-        //     "action" => "Create",
-        //     "module" => "SupplierType Module",
-        //     "details" => "created account " . $request->full_name,
-        // ]);
         return $this->responseCreated(ResponseMessage::CREATE, $supplier_type);
     }
 
@@ -94,5 +90,13 @@ class SupplierTypeController extends Controller
         }
 
         return $this->responseSuccess($message, $supplier_type);
+    }
+
+    public function import(ImportRequest $request)
+    {
+        $import = $request->all();
+        $business_unit = SupplierType::upsert($import, ["name"]);
+
+        return $this->responseSuccess("Imported Sucessfully.", $import);
     }
 }
