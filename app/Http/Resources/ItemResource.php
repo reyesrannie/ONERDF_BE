@@ -21,15 +21,27 @@ class ItemResource extends JsonResource
             "uom" => $this->uom_id
                 ? [
                     "id" => $this->uom->id,
-                    "name" => $this->uom->name,
+                    "code" => $this->uom->code,
+                    "description" => $this->uom->description,
+                    "is_integer",
                 ]
                 : null,
-            "system" => $this->system_id
-                ? [
-                    "id" => $this->system->id,
-                    "name" => $this->system->name,
-                ]
-                : null,
+            "systems" => $this->item_system->map(function ($pivotItem) {
+                return [
+                    "id" => $pivotItem->id,
+                    "name" => $pivotItem->system?->system_name,
+                ];
+            }),
+            "account_titles" => $this->item_account_titles->map(function (
+                $pivotItem
+            ) {
+                return [
+                    "id" => $pivotItem->id,
+                    "code" => $pivotItem->account_title?->code,
+                    "name" => $pivotItem->account_title?->name,
+                ];
+            }),
+
             "created_at" => $this->created_at,
             "updated_at" => $this->updated_at,
             "deleted_at" => $this->deleted_at,

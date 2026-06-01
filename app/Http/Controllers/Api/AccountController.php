@@ -269,21 +269,6 @@ class AccountController extends Controller
         $newUsersProcessed = [];
         $existingUsersWithUntaggedSystems = [];
 
-        // $takenUsernamesInRequest = [];
-        // foreach ($payload as &$userData) {
-        //     if (empty($userData["username"])) {
-        //         $userData["username"] = $this->generateUniqueUsername(
-        //             $userData["first_name"] ?? "",
-        //             $userData["last_name"] ?? "",
-        //             $takenUsernamesInRequest
-        //         );
-        //     }
-        //     $takenUsernamesInRequest[] = $userData["username"];
-        // }
-        // unset($userData);
-
-        // return $takenUsernamesInRequest;
-
         $usernames = collect($payload)
             ->pluck("username")
             ->filter()

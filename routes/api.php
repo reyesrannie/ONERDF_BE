@@ -243,6 +243,7 @@ Route::group(["middleware" => ["auth:sanctum"]], function () {
         "import",
     ]);
     Route::post("import/supplier", [SupplierController::class, "import"]);
+    Route::post("import/item", [ItemController::class, "importSync"]);
 });
 Route::post("login", [AccountController::class, "login"]);
 

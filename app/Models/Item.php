@@ -25,6 +25,11 @@ class Item extends Model
         return $this->hasMany(ItemSystem::class);
     }
 
+    public function item_account_titles()
+    {
+        return $this->hasMany(ItemAccountTitle::class);
+    }
+
     public function uom()
     {
         return $this->belongsTo(Uom::class, "uom_id", "id");

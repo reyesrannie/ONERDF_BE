@@ -9,6 +9,7 @@ class ResponseMessage
     const DELETE = "Data has been deleted successfully";
     const RESTORE = "Data has been restored successfully";
     const IMPORT = "Data imported successfully";
+    const IMPORTFAILED = "Data import failed";
     const EXPORT = "Data exported successfully";
     const SYNC = "Data sync successfully";
     const IMAGE = "Upload successfully";
