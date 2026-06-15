@@ -73,6 +73,10 @@ Route::middleware("api.key")->group(function () {
 });
 
 Route::group(["middleware" => ["auth:sanctum"]], function () {
+    Route::post("check_password_other_system", [
+        UserSyncToSystem::class,
+        "testEncrypt",
+    ]);
     //Masterlist
     Route::apiResource("user", AccountController::class);
     Route::apiResource("system", SystemController::class);
@@ -245,9 +249,5 @@ Route::group(["middleware" => ["auth:sanctum"]], function () {
     Route::post("import/supplier", [SupplierController::class, "import"]);
     Route::post("import/item", [ItemController::class, "importSync"]);
 });
-Route::post("login", [AccountController::class, "login"]);
 
-Route::post("check_password_other_system", [
-    UserSyncToSystem::class,
-    "testEncrypt",
-]);
+Route::post("login", [AccountController::class, "login"]);
