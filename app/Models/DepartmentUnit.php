@@ -17,4 +17,16 @@ class DepartmentUnit extends Model
     protected string $default_filters = DepartmentUnitFilter::class;
 
     protected $fillable = ["code", "name", "last_update_by"];
+
+    public function oneChargings()
+    {
+        return $this->hasMany(ChargingOfAccounts::class);
+    }
+
+    protected static function booted()
+    {
+        static::updated(function ($departmentUnit) {
+            $departmentUnit->oneChargings()->touch();
+        });
+    }
 }

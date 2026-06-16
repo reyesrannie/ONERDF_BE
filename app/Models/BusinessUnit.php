@@ -17,4 +17,16 @@ class BusinessUnit extends Model
     protected $table = "business_unit";
 
     protected $fillable = ["code", "name", "last_update_by"];
+
+    public function oneChargings()
+    {
+        return $this->hasMany(ChargingOfAccounts::class);
+    }
+
+    protected static function booted()
+    {
+        static::updated(function ($businessUnit) {
+            $businessUnit->oneChargings()->touch();
+        });
+    }
 }
