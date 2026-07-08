@@ -28,17 +28,16 @@ class ItemResource extends JsonResource
                 : null,
             "systems" => $this->item_system->map(function ($pivotItem) {
                 return [
-                    "id" => $pivotItem->id,
+                    "id" => $pivotItem->system?->id,
                     "name" => $pivotItem->system?->system_name,
                 ];
             }),
-            "account_titles" => $this->item_account_titles->map(function (
+            "account_title" => $this->item_account_titles->map(function (
                 $pivotItem
             ) {
                 return [
-                    "id" => $pivotItem->id,
+                    "id" => $pivotItem->account_title->id,
                     "code" => $pivotItem->account_title?->code,
-                    "name" => $pivotItem->account_title?->name,
                 ];
             }),
 

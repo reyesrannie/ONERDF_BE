@@ -11,7 +11,7 @@ class ItemAccountTitle extends Model
     use HasFactory, SoftDeletes;
     protected $fillable = ["item_id", "account_title_id"];
 
-    public function accountTitle()
+    public function account_title()
     {
         return $this->belongsTo(
             AccountTitle::class,

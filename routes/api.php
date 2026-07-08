@@ -73,6 +73,12 @@ Route::middleware("api.key")->group(function () {
 });
 
 Route::group(["middleware" => ["auth:sanctum"]], function () {
+    Route::get("refresh_user", [AccountController::class, "refresh_user"]);
+    Route::post("generate_support_token", [
+        AccountController::class,
+        "generateSupportToken",
+    ]);
+
     Route::post("check_password_other_system", [
         UserSyncToSystem::class,
         "testEncrypt",

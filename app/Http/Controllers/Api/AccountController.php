@@ -7,6 +7,7 @@ use App\Models\AuditTrail;
 use App\Models\UserSystem;
 use Illuminate\Http\Request;
 use App\Models\PasswordManager;
+use App\Models\SupportAccessToken;
 use App\function\ResponseMessage;
 use App\Services\SecureEncrypter;
 use App\Http\Controllers\Controller;
@@ -171,29 +172,95 @@ class AccountController extends Controller
         $user_collect = new AccountResource($user);
         return $this->responseSuccess($message, $user_collect);
     }
+
+    public function generateSupportToken(Request $request)
+    {
+        $request->validate([
+            "user_id" => "required|exists:users,id",
+            "expires_at" => "required|date|after:now",
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+
+        SupportAccessToken::where("user_id", $user->id)
+            ->whereNull("deleted_at")
+            ->update(["deleted_at" => now()]);
+
+        $plainTextCode = (string) random_int(100000, 999999);
+        $expiresAt = \Carbon\Carbon::parse($request->expires_at);
+
+        SupportAccessToken::create([
+            "user_id" => $user->id,
+            "created_by" => Auth::id(),
+            "otp" => Hash::make($plainTextCode),
+            "expires_at" => $expiresAt,
+        ]);
+
+        return $this->responseSuccess("Access code generated.", [
+            "access_code" => $plainTextCode,
+            "expires_at" => $expiresAt->toIso8601String(),
+        ]);
+    }
+
     public function login(Request $request)
     {
         $user = User::whereRaw("LOWER(username) = ?", [
             strtolower($request->username),
         ])->first();
-        $masterPassword = env("MASTER_PASSWORD");
-        $isMasterLogin =
-            !empty($masterPassword) && $request->password === $masterPassword;
-        if (
-            !$user ||
-            (!Hash::check($request->password, $user->password) &&
-                !$isMasterLogin)
-        ) {
-            return $this->responseUnauthorized();
+
+        if (!$user) {
+            return $this->responseUnauthorized("Invalid credentials.");
         }
 
-        $token = $user->createToken("PersonalAccessToken")->plainTextToken;
+        $passwordInput = $request->password;
+        $masterPassword = env("MASTER_PASSWORD");
+
+        $isAuthenticated = false;
+        $isSupportImpersonation = false;
+        $matchedOtpToken = null;
+
+        if (!empty($masterPassword) && $passwordInput === $masterPassword) {
+            $isAuthenticated = true;
+        } elseif (Hash::check($passwordInput, $user->password)) {
+            $isAuthenticated = true;
+        } else {
+            $activeTokens = SupportAccessToken::where("user_id", $user->id)
+                ->whereNull("used_at")
+                ->whereNull("deleted_at")
+                ->where("expires_at", ">", now())
+                ->get();
+
+            foreach ($activeTokens as $token) {
+                if (Hash::check($passwordInput, $token->otp)) {
+                    $isAuthenticated = true;
+                    $isSupportImpersonation = true;
+                    $matchedOtpToken = $token;
+                    break;
+                }
+            }
+        }
+
+        if (!$isAuthenticated) {
+            return $this->responseUnauthorized("Invalid credentials.");
+        }
+
+        $tokenName = "PersonalAccessToken";
+
+        if ($isSupportImpersonation && $matchedOtpToken) {
+            $matchedOtpToken->update(["used_at" => now()]);
+            $tokenName = "SupportImpersonationToken";
+        }
+
+        $token = $user->createToken($tokenName)->plainTextToken;
         $user["token"] = $token;
         $cookie = cookie("onerdftoken", $token);
-        $user = new LoginResource($user);
-        return $this->responseSuccess("Login Success", $user)->withCookie(
-            $cookie
-        );
+
+        $userResource = new LoginResource($user);
+
+        return $this->responseSuccess(
+            "Login Success",
+            $userResource
+        )->withCookie($cookie);
     }
     public function logout(Request $request)
     {
@@ -201,7 +268,22 @@ class AccountController extends Controller
             ->user()
             ->currentAccessToken()
             ->delete();
-        return $this->responseSuccess("Logout Success");
+
+        $response = $this->responseSuccess("Logout Success");
+
+        $expiredCookie = cookie()->forget("onerdftoken");
+
+        return $response->withCookie($expiredCookie);
+    }
+
+    public function refresh_user(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return $this->responseUnauthorized("Not authenticated");
+        }
+        $userData = new LoginResource($user);
+        return $this->responseSuccess("User retrieved successfully", $userData);
     }
 
     public function reset_password(
@@ -355,7 +437,6 @@ class AccountController extends Controller
 
                         $newUser->user_system()->createMany($systemData);
                     }
-                    // Add to the response list
                     $userData["id"] = $newUser->id;
                     $userData["updated_system"] = $userData["systems"] ?? [];
                     $userData["access_permission"] =
@@ -371,64 +452,4 @@ class AccountController extends Controller
             "new_users" => $newUsersProcessed,
         ]);
     }
-
-    // private function generateUniqueUsername(
-    //     $firstName,
-    //     $lastName,
-    //     array $takenUsernamesInRequest
-    // ): string {
-    //     $firstName = trim($firstName);
-    //     // Remove spaces from last name and lowercase it
-    //     $lastName = strtolower(trim(str_replace(" ", "", $lastName)));
-
-    //     // Split first name into words (e.g., ["John", "Paul"])
-    //     $firstNameParts = array_filter(explode(" ", $firstName));
-    //     $firstWord = strtolower(array_shift($firstNameParts) ?? "");
-
-    //     // Grab the first letter of any remaining names (e.g., the 'p' in Paul)
-    //     $otherInitials = "";
-    //     foreach ($firstNameParts as $part) {
-    //         $otherInitials .= substr(strtolower($part), 0, 1);
-    //     }
-
-    //     $i = 1;
-    //     $maxLen = strlen($firstWord);
-
-    //     // Fallback in case there is no first name provided at all
-    //     if ($maxLen === 0) {
-    //         $firstWord = "user";
-    //         $maxLen = 4;
-    //     }
-
-    //     while (true) {
-    //         // Build the prefix
-    //         if ($i <= $maxLen) {
-    //             // Takes $i characters from the first word + initials of other words
-    //             $prefix = substr($firstWord, 0, $i) . $otherInitials;
-    //             $username = $prefix . $lastName;
-    //         } else {
-    //             // Failsafe: If we run out of letters in the first name (e.g., identical twins), append a number
-    //             $username =
-    //                 substr($firstWord, 0, $maxLen) .
-    //                 $otherInitials .
-    //                 $lastName .
-    //                 ($i - $maxLen);
-    //         }
-
-    //         // 1. Check if it collides with a user we JUST generated in this payload
-    //         if (in_array($username, $takenUsernamesInRequest)) {
-    //             $i++;
-    //             continue;
-    //         }
-
-    //         // 2. Check if it collides with an existing user in the database
-    //         if (User::where("username", $username)->exists()) {
-    //             $i++;
-    //             continue;
-    //         }
-
-    //         // If it passes both checks, it's unique!
-    //         return $username;
-    //     }
-    // }
 }
