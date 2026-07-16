@@ -26,7 +26,6 @@ use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\NormalBalanceController;
 use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\PasswordManagerController;
 use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\SubMunicipalityController;
@@ -70,6 +69,7 @@ Route::middleware("api.key")->group(function () {
         AccountTitleController::class,
         "account_title_api",
     ]);
+    Route::get("item_api", [ItemController::class, "sync"]);
 });
 
 Route::group(["middleware" => ["auth:sanctum"]], function () {
@@ -83,13 +83,18 @@ Route::group(["middleware" => ["auth:sanctum"]], function () {
         UserSyncToSystem::class,
         "testEncrypt",
     ]);
+
+    Route::get("getAllPass", [UserSyncToSystem::class, "extractPasswords"]);
     //Masterlist
     Route::apiResource("user", AccountController::class);
     Route::apiResource("system", SystemController::class);
     Route::apiResource("notification", NotificationController::class);
     Route::apiResource("category", CategoryController::class);
     Route::apiResource("uom", UomController::class);
+
+    //ItemListing
     Route::apiResource("item", ItemController::class);
+    Route::post("store_item_sync", [ItemController::class, "store_item_sync"]);
 
     Route::apiResource("sample", UserSyncToSystem::class);
     Route::apiResource("audit", AuditTrailController::class);

@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\AuditTrail;
-use Illuminate\Http\Request;
-use App\Models\PasswordManager;
 use App\function\ResponseMessage;
-use App\Services\SecureEncrypter;
 use App\Http\Controllers\Controller;
+use App\Models\AuditTrail;
+use App\Models\PasswordManager;
+use App\Services\SecureEncrypter;
 use Essa\APIToolKit\Api\ApiResponse;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class UserSyncToSystem extends Controller
 {
@@ -282,8 +283,6 @@ class UserSyncToSystem extends Controller
 
     public function testEncrypt(Request $request, SecureEncrypter $encrypter)
     {
-        // return $request->id_prefix;
-
         $existingAccount = PasswordManager::where(
             "id_prefix",
             $request->id_prefix
@@ -299,5 +298,48 @@ class UserSyncToSystem extends Controller
         } else {
             return $this->responseNotFound("Login Failed");
         }
+    }
+
+    public function extractPasswords(SecureEncrypter $encrypter)
+    {
+        $decryptedData = [];
+
+        // 1. Fetch the joined data from the database
+        $users = DB::table("users")
+            ->join("password_managers", function ($join) {
+                $join
+                    ->on("users.id_prefix", "=", "password_managers.id_prefix")
+                    ->on("users.id_no", "=", "password_managers.id_no");
+            })
+            ->select(
+                "users.id_prefix",
+                "users.id_no",
+                "users.username",
+                "password_managers.password_encrypted"
+            )
+            ->get();
+
+        foreach ($users as $user) {
+            $identifier = $user->id_prefix . "-" . $user->id_no;
+
+            try {
+                // Attempt decryption
+                $rawPassword = $encrypter->decrypt($user->password_encrypted);
+
+                $decryptedData[] = [
+                    "user_id" => $identifier,
+                    "username" => $user->username,
+                    "password" => $rawPassword,
+                ];
+            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                $decryptedData[] = [
+                    "user_id" => $identifier,
+                    "username" => $user->username,
+                    "password" => null,
+                ];
+            }
+        }
+
+        return response()->json($decryptedData);
     }
 }

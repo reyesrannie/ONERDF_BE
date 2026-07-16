@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Api;
 
 use App\function\ResponseMessage;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Item\ExternalRequest;
 use App\Http\Requests\Item\StoreRequest;
 use App\Http\Requests\StatusRequest;
 use App\Http\Resources\ItemResource;
+use App\Http\Resources\ItemResourceExternal;
 use App\Imports\ItemsImport;
+use App\Models\AuditTrail;
 use App\Models\Item;
 use App\Models\ItemAccountTitle;
 use App\Models\ItemSystem;
 use Essa\APIToolKit\Api\ApiResponse;
 use Exception;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ItemController extends Controller
@@ -180,5 +185,80 @@ class ItemController extends Controller
                 ResponseMessage::IMPORTFAILED
             );
         }
+    }
+
+    public function sync(ExternalRequest $request)
+    {
+        $systemId = $request->system;
+        $item = Item::with(
+            "uom",
+            "item_system.system",
+            "item_account_titles.account_title"
+        )
+            ->whereHas("item_system", function ($query) use ($systemId) {
+                $query->where("system_id", $systemId);
+            })
+            ->useFilters()
+            ->dynamicPaginate();
+
+        if ($item->isEmpty()) {
+            return $this->responseNotFound("Nothing to display.");
+        }
+
+        $item = ItemResourceExternal::collection($item);
+
+        return $this->responseSuccess(ResponseMessage::DISPLAY, $item);
+    }
+
+    public function store_item_sync(Request $request)
+    {
+        $api = [
+            "code" => $request->code,
+            "description" => $request->description,
+            "uom_code" => $request->uom_code,
+            "account_title" => $request->account_title,
+        ];
+
+        try {
+            $response = Http::withOptions(["verify" => false])
+                ->withHeaders([
+                    "api-key" => $request->endpoint["token"],
+                    "Accept" => "application/json",
+                ])
+                ->post($request->endpoint["url"], $api);
+
+            return $response;
+            if ($response->failed()) {
+                $body = json_decode($response->body(), true);
+                $message =
+                    $body["message"] ?? ($response->body() ?? "Unknown error");
+
+                AuditTrail::create([
+                    "user_id" => $api["code"],
+                    "system_id" => $request->endpoint["id"],
+                    "action" => "Unable to create item for {$api["code"]}-{$api["description"]}",
+                    "module" => "Item",
+                    "details" => "Error from {$request->endpoint["name"]} ({$response->status()}): {$message}",
+                ]);
+            }
+        } catch (ConnectionException $e) {
+            AuditTrail::create([
+                "user_id" => $api["code"],
+                "system_id" => $request->endpoint["id"],
+                "action" => "Unable to create item for {$api["code"]}-{$api["description"]}",
+                "module" => "Item",
+                "details" => "Connection error from {$request->endpoint["name"]}: {$e->getMessage()}",
+            ]);
+        } catch (\Exception $e) {
+            AuditTrail::create([
+                "user_id" => $api["code"],
+                "system_id" => $request->endpoint["id"],
+                "action" => "Unable to create item for {$api["code"]}-{$api["description"]}",
+                "module" => "Item",
+                "details" => "Unexpected error from {$request->endpoint["name"]}: {$e->getMessage()}",
+            ]);
+        }
+
+        return $this->responseCreated(ResponseMessage::SYNC);
     }
 }
