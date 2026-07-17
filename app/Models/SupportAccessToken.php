@@ -12,6 +12,7 @@ class SupportAccessToken extends Model
 
     protected $fillable = [
         "user_id",
+        "requested_by_id",
         "created_by",
         "otp",
         "expires_at",

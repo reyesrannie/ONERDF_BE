@@ -177,10 +177,12 @@ class AccountController extends Controller
     {
         $request->validate([
             "user_id" => "required|exists:users,id",
+            "requested_by_id" => "required|exists:users,id",
             "expires_at" => "required|date|after:now",
         ]);
 
         $user = User::findOrFail($request->user_id);
+        $requestedBy = User::findOrFail($request->requested_by_id);
 
         SupportAccessToken::where("user_id", $user->id)
             ->whereNull("deleted_at")
@@ -191,6 +193,7 @@ class AccountController extends Controller
 
         SupportAccessToken::create([
             "user_id" => $user->id,
+            "requested_by_id" => $requestedBy->id,
             "created_by" => Auth::id(),
             "otp" => Hash::make($plainTextCode),
             "expires_at" => $expiresAt,
@@ -225,7 +228,6 @@ class AccountController extends Controller
             $isAuthenticated = true;
         } else {
             $activeTokens = SupportAccessToken::where("user_id", $user->id)
-                ->whereNull("used_at")
                 ->whereNull("deleted_at")
                 ->where("expires_at", ">", now())
                 ->get();
@@ -245,13 +247,16 @@ class AccountController extends Controller
         }
 
         $tokenName = "PersonalAccessToken";
+        $abilities = ["*"];
+        $requestedById = null;
 
         if ($isSupportImpersonation && $matchedOtpToken) {
-            $matchedOtpToken->update(["used_at" => now()]);
             $tokenName = "SupportImpersonationToken";
+            $requestedById = $matchedOtpToken->requested_by_id;
+            $abilities = ["requested_by:" . $requestedById];
         }
 
-        $token = $user->createToken($tokenName)->plainTextToken;
+        $token = $user->createToken($tokenName, $abilities)->plainTextToken;
         $user["token"] = $token;
         $cookie = cookie("onerdftoken", $token);
 

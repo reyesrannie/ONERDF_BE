@@ -14,10 +14,10 @@ return new class extends Migration {
             $table->uuid("id")->primary();
             $table->foreignId("user_id");
             $table->foreignId("created_by");
+            $table->foreignId("requested_by_id");
             $table->string("otp");
             $table->timestamp("expires_at");
             $table->timestamp("used_at")->nullable();
-
             $table->timestamps();
             $table->softDeletes();
             $table->index(["user_id", "used_at"]);

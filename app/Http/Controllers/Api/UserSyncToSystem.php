@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\function\ResponseMessage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditTrail;
+use App\Models\OtpLogs;
 use App\Models\PasswordManager;
 use App\Services\SecureEncrypter;
 use Essa\APIToolKit\Api\ApiResponse;
@@ -210,7 +211,6 @@ class UserSyncToSystem extends Controller
     public function systemLogin(Request $request, SecureEncrypter $encrypter)
     {
         $user_login = Auth::id();
-
         $existingAccount = PasswordManager::where(
             "id_prefix",
             $request->id_prefix
@@ -257,6 +257,14 @@ class UserSyncToSystem extends Controller
                     "details" => "Error from {$request->endpoint["name"]} ({$response->status()}): {$message}",
                 ]);
                 return $this->responseNotFound("Login Failed");
+            }
+            if ($request->is_support_impersonation) {
+                OtpLogs::create([
+                    "user_id" => $user_login,
+                    "accessed_by" => $request["requested_by"],
+                    "system_name" => $request->endpoint["name"],
+                    "status" => "Success",
+                ]);
             }
 
             return $this->responseSuccess("Login success", $response->json());

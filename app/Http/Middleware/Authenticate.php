@@ -26,6 +26,29 @@ class Authenticate extends Middleware
 
         $this->authenticate($request, $guards);
 
+        $user = $request->user();
+        $requestedById = null;
+
+        if ($user && $user->currentAccessToken()) {
+            $tokenName = $user->currentAccessToken()->name;
+            $abilities = $user->currentAccessToken()->abilities ?? [];
+
+            if ($tokenName === "SupportImpersonationToken") {
+                foreach ($abilities as $ability) {
+                    if (str_starts_with($ability, "requested_by:")) {
+                        $requestedById = explode(":", $ability)[1];
+                        break;
+                    }
+                }
+            }
+
+            $request->merge([
+                "is_support_impersonation" =>
+                    $tokenName === "SupportImpersonationToken",
+                "requested_by" => $requestedById,
+            ]);
+        }
+
         return $next($request);
     }
 }
