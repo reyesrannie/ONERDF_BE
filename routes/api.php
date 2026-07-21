@@ -97,7 +97,11 @@ Route::group(["middleware" => ["auth:sanctum"]], function () {
     Route::post("store_item_sync", [ItemController::class, "store_item_sync"]);
 
     Route::apiResource("sample", UserSyncToSystem::class);
+
+    //Audit
     Route::apiResource("audit", AuditTrailController::class);
+    Route::get("audit_logins", [AuditTrailController::class, "audit_logins"]);
+
     Route::apiResource("column", ColumnController::class);
 
     //Supplier

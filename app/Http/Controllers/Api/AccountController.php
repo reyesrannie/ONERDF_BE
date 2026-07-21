@@ -178,7 +178,6 @@ class AccountController extends Controller
         $request->validate([
             "user_id" => "required|exists:users,id",
             "requested_by_id" => "required|exists:users,id",
-            "expires_at" => "required|date|after:now",
         ]);
 
         $user = User::findOrFail($request->user_id);

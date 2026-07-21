@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\AuditTrail;
-use Illuminate\Http\Request;
 use App\function\ResponseMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StatusRequest;
-use Essa\APIToolKit\Api\ApiResponse;
 use App\Http\Resources\AuditTrailResource;
+use App\Http\Resources\OTPLogsResource;
+use App\Models\AuditTrail;
+use App\Models\OtpLogs;
+use Essa\APIToolKit\Api\ApiResponse;
+use Illuminate\Http\Request;
 
 class AuditTrailController extends Controller
 {
@@ -56,5 +58,25 @@ class AuditTrailController extends Controller
         }
         $audit_collect = new AuditTrailResource($audit);
         return $this->responseSuccess($message, $audit_collect);
+    }
+
+    public function audit_logins(StatusRequest $request)
+    {
+        $status = $request->status;
+        $audit = OtpLogs::with("user", "accessedBy")
+            ->when($status === "inactive", function ($query) {
+                $query->onlyTrashed();
+            })
+            ->useFilters()
+            ->latest()
+            ->dynamicPaginate();
+
+        if ($audit->isEmpty()) {
+            return $this->responseNotFound("Nothing to display.");
+        }
+
+        OTPLogsResource::collection($audit);
+
+        return $this->responseSuccess(ResponseMessage::DISPLAY, $audit);
     }
 }

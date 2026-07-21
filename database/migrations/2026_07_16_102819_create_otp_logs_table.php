@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string("system_name");
             $table->string("status");
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
