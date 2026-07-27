@@ -257,6 +257,7 @@ class AccountController extends Controller
 
         $token = $user->createToken($tokenName, $abilities)->plainTextToken;
         $user["token"] = $token;
+        $user["is_otp"] = $isSupportImpersonation;
         $cookie = cookie("onerdftoken", $token);
 
         $userResource = new LoginResource($user);

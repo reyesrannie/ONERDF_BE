@@ -26,6 +26,7 @@ class LoginResource extends JsonResource
             "user_system" => $this->user_system,
             "access_permission" => explode(",", $this->access_permission),
             "token" => $this->token,
+            "is_otp" => $this->is_otp ?? false,
             "updated_at" => $this->updated_at,
             "deleted_at" => $this->deleted_at,
         ];
